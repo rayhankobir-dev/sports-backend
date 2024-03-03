@@ -25,12 +25,12 @@ export const dbConfig = {
 
 // mail configuration
 export const mailConfig = {
-  sender: process.env.SENDER_EMAIL || "tugrp@example.com",
-  password: process.env.MAIL_PASSWORD || "nodejs",
-  host: process.env.MAIL_HOST || "smtp.gmail.com",
+  sender: process.env.SENDER_EMAIL || "",
+  password: process.env.MAIL_PASSWORD || "",
+  host: process.env.MAIL_HOST || "",
   port: process.env.MAIL_PORT || 465,
   secure: process.env.MAIL_SECURE || true,
-  user: process.env.MAIL_USER || "tugrp@example.com",
+  user: process.env.MAIL_USER || "",
 };
 
 // token configuration
