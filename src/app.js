@@ -1,4 +1,5 @@
 import cors from "cors";
+import path from "path";
 import express from "express";
 import { corsConfig } from "./config.js";
 import routes from "./routes/index.js";
@@ -12,8 +13,8 @@ const app = express();
 app.use(cors(corsConfig));
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(process.cwd(), "public")));
 
 // handle api routes
 app.use("/api/v1", routes);
