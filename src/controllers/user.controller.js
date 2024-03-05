@@ -1,32 +1,65 @@
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import User from "./models/user.model.js";
+import { User } from "../models/user.model.js";
+import { Role } from "../models/role.model.js";
+import asyncHandler from "../helpers/asyncHandler.js";
+import ApiError from "../helpers/ApiError.js";
+import ApiResponse from "../helpers/ApiResponse.js";
+import { tokenConfig } from "../config.js";
 
-// login controller
-export const loginController = async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
-  if (!user) {
-    return res.status(400).json({
-      message: "User not found",
-    });
+// generating access and refresh token
+export const generateAccessAndRefereshTokens = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(500, "Something went wrong!");
   }
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) {
-    res.status(400).json({
-      message: "Invalid password",
-    });
-  }
-
-  return res.status(200).json({
-    success: true,
-    message: "Login successful",
-  });
 };
 
-// creating new user
-export const signupController = async (req, res) => {
+// login controller
+export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiResponse(200, "User not registered");
+
+  const isCorrectPassword = await user.isPasswordCorrect(password);
+  if (!isCorrectPassword) throw new ApiResponse(400, "Invalid credentials");
+
+  const loggedInUser = await User.findById(user._id)
+    .select("-password -refreshToken")
+    .populate("role");
+
+  const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(
+    user._id
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json({
+      success: true,
+      message: "Login successful",
+      user: loggedInUser,
+      accessToken,
+      refreshToken,
+    });
+});
+
+// creating new user
+export const signupUser = asyncHandler(async (req, res) => {
+  const { fullName, email, password } = req.body;
+
   const user = await User.findOne({ email });
   if (user) {
     return res.status(400).json({
@@ -34,18 +67,99 @@ export const signupController = async (req, res) => {
       message: "Email already exists",
     });
   }
-  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const defaultRole = await Role.findOne({ role: "player" });
+  if (!defaultRole) {
+    return res.status(500).json({
+      success: false,
+      message: "User role not found",
+    });
+  }
+
   const newUser = await User.create({
+    fullName,
     email,
-    password: hashedPassword,
+    password,
+    role: defaultRole,
   });
 
   return res.status(201).json({
     success: true,
     message: "User created successfully",
   });
-};
+});
 
+export const logoutUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $unset: {
+        refreshToken: 1,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, "User logged out"));
+});
+
+export const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
+  try {
+    const payload = jwt.verify(
+      incomingRefreshToken,
+      tokenConfig.refreshTokenSecret
+    );
+
+    const user = await User.findById(payload?._id);
+
+    if (!user) {
+      throw new ApiError(401, "Invalid refresh token");
+    }
+
+    if (incomingRefreshToken !== user?.refreshToken) {
+      throw new ApiError(401, "Refresh token is expired or used");
+    }
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(
+      user._id
+    );
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json(
+        new ApiResponse(200, "Access token refreshed", {
+          accessToken,
+          refreshToken,
+        })
+      );
+  } catch (error) {
+    throw new ApiError(401, "Invalid refresh token");
+  }
+});
 // create coach controller
 export const createCoachController = async (req, res) => {
   const { name, email, password } = req.body;

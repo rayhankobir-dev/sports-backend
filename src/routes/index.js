@@ -1,8 +1,9 @@
-import { Route } from "express";
+import { Router } from "express";
+import userRoute from "./user.route.js";
 
-const route = new Route();
-route.get("/", (req, res) => {
-  return res.send("Hello world");
+const routes = new Router();
+routes.use("/user", userRoute);
+routes.get("/", (req, res) => {
+  res.send("GET request to the homepage");
 });
-
-export default route;
+export default routes;
