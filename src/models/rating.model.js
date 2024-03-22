@@ -24,4 +24,6 @@ const ratingSchema = new Schema(
   { timestamps: true }
 );
 
+ratingSchema.index({ user: 1, video: 1 }, { unique: true });
+
 export const Rating = mongoose.model("Rating", ratingSchema);

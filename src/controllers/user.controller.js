@@ -6,6 +6,11 @@ import asyncHandler from "../helpers/asyncHandler.js";
 import ApiError from "../helpers/ApiError.js";
 import ApiResponse from "../helpers/ApiResponse.js";
 import { tokenConfig } from "../config.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { Genre } from "../models/genre.model.js";
+import { Video } from "../models/video.model.js";
+import { Rating } from "../models/rating.model.js";
+import { topWatchedVideos } from "./video.controller.js";
 
 // generating access and refresh token
 export const generateAccessAndRefereshTokens = async (userId) => {
@@ -25,10 +30,10 @@ export const generateAccessAndRefereshTokens = async (userId) => {
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
-  if (!user) throw new ApiResponse(200, "User not registered");
+  if (!user) throw new ApiError(404, "User not registered");
 
   const isCorrectPassword = await user.isPasswordCorrect(password);
-  if (!isCorrectPassword) throw new ApiResponse(400, "Invalid credentials");
+  if (!isCorrectPassword) throw new ApiError(400, "Invalid credentials");
 
   const loggedInUser = await User.findById(user._id)
     .select("-password -refreshToken")
@@ -160,110 +165,71 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid refresh token");
   }
 });
-// create coach controller
-export const createCoachController = async (req, res) => {
-  const { name, email, password } = req.body;
-  const user = await User.findOne({ email });
-  if (user) {
-    return res.status(400).json({
-      success: false,
-      message: "Email already exists",
-    });
-  }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = await User.create({
-    name,
-    email,
-    password: hashedPassword,
-    role: "coach",
-  });
-
-  return res.status(201).json({
-    success: true,
-    message: "Admin created successfully",
-    data: newUser,
-  });
-};
-
-// create player controller
-export const createPlayerController = async (req, res) => {
-  const { name, email, password } = req.body;
-  const user = await User.findOne({ email });
-  if (user) {
-    return res.status(400).json({
-      success: false,
-      message: "Email already exists",
-    });
-  }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = await User.create({
-    name,
-    email,
-    password: hashedPassword,
-    role: "player",
-  });
-
-  return res.status(201).json({
-    success: true,
-    message: "Admin created successfully",
-    data: newUser,
-  });
-};
 
 // create admin controller
-export const createAdminController = async (req, res) => {
-  const { name, email, password } = req.body;
-  const user = await User.findOne({ email });
-  if (user) {
-    return res.status(400).json({
-      success: false,
-      message: "User already exists",
-    });
-  }
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = await User.create({
-    name,
-    email,
-    password: hashedPassword,
-    role: "admin",
-  });
+export const createUser = async (req, res) => {
+  const { fullName, email, password, avatar, role } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    const existRole = await Role.findOne({ role });
 
-  return res.status(201).json({
-    success: true,
-    message: "Admin created successfully",
-    data: newUser,
-  });
+    if (user)
+      return res.status(400).json(new ApiResponse(400, "User already exists"));
+    if (!existRole)
+      return res.status(400).json(new ApiResponse(400, "Role doesn't exists"));
+
+    const { url } = await uploadOnCloudinary(avatar.path);
+
+    const newUser = await User.create({
+      fullName,
+      email,
+      password,
+      avatar: url,
+      role: existRole._id,
+    });
+
+    return res.status(201).json(
+      new ApiResponse(201, `${role} created successfully`, {
+        user: newUser,
+      })
+    );
+  } catch (error) {
+    throw new ApiError(500, "Internal Server Error");
+  }
 };
 
 // get all player controller
-export const getAllPlayerController = async (req, res) => {
-  const users = await User.find({ role: "player" });
+export const getAllPlayers = asyncHandler(async (req, res) => {
+  const role = await Role.findOne({ role: "player" });
+  const users = await User.find({ role }).populate("role");
   return res.status(200).json({
     success: true,
-    message: "All players",
+    message: "Success",
     data: users,
   });
-};
+});
 
 // get all coach controller
-export const getAllCoachController = async (req, res) => {
-  const users = await User.find({ role: "coach" });
+export const getAllCoach = asyncHandler(async (req, res) => {
+  const role = await Role.findOne({ role: "coach" });
+  const users = await User.find({ role }).populate("role");
   return res.status(200).json({
     success: true,
-    message: "All coaches",
+    message: "Success",
     data: users,
   });
-};
+});
 
 // get all admin controller
-export const getAllAdminController = async (req, res) => {
-  const users = await User.find({ role: "admin" });
+export const getAllAdmin = asyncHandler(async (req, res) => {
+  const role = await Role.findOne({ role: "admin" });
+  const users = await User.find({ role }).populate("role");
   return res.status(200).json({
     success: true,
-    message: "All admins",
+    message: "Success",
     data: users,
   });
-};
+});
 
 // get user by their email controller
 export const getUserByEmailController = async (req, res) => {
@@ -317,3 +283,247 @@ export const updateUserByEmailController = async (req, res) => {
     data: user,
   });
 };
+
+// getting user profile
+export const userProfile = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select("-password -refreshToken")
+      .populate("role genre watchHistory practiceList");
+    return res.status(200).json(new ApiResponse(200, "Success", { user }));
+  } catch (error) {
+    throw error;
+  }
+});
+
+export const updateAvatar = asyncHandler(async (req, res) => {
+  const { avatar } = req.body;
+  try {
+    const { url } = await uploadOnCloudinary(avatar.path);
+    await User.updateOne({ _id: req.user._id }, { avatar: url });
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Avatar successfully updated"));
+  } catch (error) {
+    throw error;
+  }
+});
+
+export const deleteUser = asyncHandler(async (req, res) => {
+  const { user } = req.body;
+  try {
+    await User.findByIdAndDelete(user);
+    res.status(200).json(new ApiResponse(200, "User deleted"));
+  } catch (error) {
+    res.status(500).json(new ApiResponse(500, "Error"));
+  }
+});
+
+export const updateProfile = asyncHandler(async (req, res) => {
+  const { fullName, genre, height, weight, country } = req.body;
+  try {
+    console.log(genre);
+    const existGenre = await Genre.findById(genre);
+    if (!existGenre) throw new ApiError(400, "Invalid genre");
+    await User.findByIdAndUpdate(req.user._id, {
+      fullName,
+      genre,
+      weight,
+      height,
+      country,
+    });
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Profile successfully updated"));
+  } catch (error) {
+    throw error;
+  }
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  try {
+    const user = await User.findById(req.user._id);
+    const isMatched = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatched) throw new ApiError(400, "Inccorect current password");
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await User.findByIdAndUpdate(req.user.id, {
+      password: hashedPassword,
+    });
+
+    return res.status(200).json(new ApiResponse(200, "Password is updated"));
+  } catch (error) {
+    throw error;
+  }
+});
+
+export const addWatchHistory = asyncHandler(async (req, res) => {
+  const { videoId } = req.body;
+  try {
+    const user = await User.findById(req.user._id);
+    const watched = user.watchHistory?.some(
+      (watch) => watch?._id.toString() === videoId
+    );
+    const video = await Video.findById(videoId);
+    if (!watched) {
+      user.watchHistory.push(video);
+      user.save();
+    }
+
+    res.status(200).json(new ApiResponse(200, "Success"));
+  } catch (error) {
+    throw error;
+  }
+});
+
+export const adminAnalytics = asyncHandler(async (req, res) => {
+  try {
+    const geoData = await getGeoData();
+    const pieData = await getGenreVideos();
+    const userCount = await getTotalUser();
+    const videoInfo = await getVideCount();
+
+    const analytics = {
+      geoData,
+      pieData,
+      userCount,
+      videoInfo,
+    };
+
+    res.status(200).json(
+      new ApiResponse(200, "Success", {
+        analytics,
+      })
+    );
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+const getGenreVideos = async () => {
+  const result = await Video.aggregate([
+    {
+      $group: {
+        _id: "$genre",
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $lookup: {
+        from: "genres",
+        localField: "_id",
+        foreignField: "_id",
+        as: "genre",
+      },
+    },
+    {
+      $unwind: {
+        path: "$genre",
+        preserveNullAndEmptyArrays: true, // Preserve unmatched genres
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        id: { $ifNull: ["$genre.slug", "Unknown"] }, // Handle cases where genre is not found
+        label: { $ifNull: ["$genre.name", "Unknown"] }, // Handle cases where genre is not found
+        value: { $ifNull: ["$count", 0] }, // Set count to 0 if genre is not found
+        color: { $literal: "hsl(139, 70%, 50%)" },
+      },
+    },
+  ]);
+
+  return result;
+};
+
+const getGeoData = async () => {
+  const role = await Role.findOne({ role: "player" });
+  const result = await User.aggregate([
+    {
+      $match: { country: { $ne: null }, role: role._id },
+    },
+    { $group: { _id: "$country", count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+  ]);
+
+  const formattedResult = [
+    ["Country", "Players"],
+    ...result.map((item) => [item._id, item.count]),
+  ];
+
+  return formattedResult;
+};
+
+const getVideCount = async () => {
+  try {
+    const totalVideos = await Video.countDocuments();
+    const publishedVideos = await Video.countDocuments({ isPublished: true });
+    const unpublishedVideos = await Video.countDocuments({
+      isPublished: false,
+    });
+
+    return { totalVideos, publishedVideos, unpublishedVideos };
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const getTotalUser = async () => {
+  try {
+    const result = await User.aggregate([
+      { $group: { _id: "$role", count: { $sum: 1 } } },
+      {
+        $lookup: {
+          from: "roles",
+          localField: "_id",
+          foreignField: "_id",
+          as: "roleInfo",
+        },
+      },
+      { $unwind: "$roleInfo" },
+      {
+        $project: {
+          _id: "$_id",
+          role: "$roleInfo.role",
+          count: 1,
+        },
+      },
+    ]);
+
+    const formattedResult = {};
+    result.forEach((item) => {
+      formattedResult[item.role] = { count: item.count };
+    });
+    return formattedResult;
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const getPracticeList = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    console.log(user);
+    return res.status(200).json(
+      new ApiResponse(200, "Success", {
+        practiceList: user.practiceList,
+      })
+    );
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+export const getRatedVideos = asyncHandler(async (req, res) => {
+  try {
+    const videos = await Rating.find({ user: req.user._id });
+    res.status(200).json(
+      new ApiResponse(200, "Success", {
+        videos,
+      })
+    );
+  } catch (error) {
+    console.log(error);
+  }
+});

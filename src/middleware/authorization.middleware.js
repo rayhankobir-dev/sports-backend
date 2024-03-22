@@ -9,11 +9,11 @@ const authorization = (allowedRoles) =>
     if (!user || !userRole) throw new ApiError("Unauthorized request");
 
     if (!allowedRoles.some((role) => userRole.role == role))
-      throw new ApiError(401, "Permision denied");
+      throw new ApiError(403, "Permision denied");
 
     const roles = await Role.find().lean();
     if (!roles.some((role) => userRole._id.toString() === role._id.toString()))
-      throw new ApiError(401, "Permission denied");
+      throw new ApiError(403, "Permission denied");
 
     next();
   });

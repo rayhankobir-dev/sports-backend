@@ -7,7 +7,6 @@ const storage = multer.diskStorage({
     callback(null, process.cwd() + "/public/temp/");
   },
   filename: function (req, file, callback) {
-    console.log(req.body);
     const fileExt = path.extname(file.originalname).toLowerCase();
     const prefix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     callback(null, file.fieldname + "-" + prefix + fileExt);
@@ -34,7 +33,6 @@ export const upload = (allowedExtensions) =>
   });
 
 export function validateFiles(req, res, next) {
-  console.log(req.body);
   Object.keys(req.files).forEach((fieldName) => {
     req.body[fieldName] = req.files[fieldName][0];
   });

@@ -9,6 +9,13 @@ const genreSchema = new Schema(
       lowecase: true,
       trim: true,
     },
+    slug: {
+      type: String,
+      requried: true,
+      unique: true,
+      lowecase: true,
+      trim: true,
+    },
   },
   { timestamps: true }
 );

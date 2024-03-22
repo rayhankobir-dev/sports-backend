@@ -7,6 +7,12 @@ const videoSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    slug: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      required: true,
+    },
     description: {
       type: String,
       required: true,
@@ -14,6 +20,23 @@ const videoSchema = new mongoose.Schema(
     genre: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Genre",
+      required: true,
+    },
+    playBackUrl: {
+      type: String,
+      required: true,
+    },
+    format: {
+      type: String,
+      required: true,
+    },
+    isPublished: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    thumbnail: {
+      type: String,
       required: true,
     },
     file: {
@@ -28,6 +51,12 @@ const videoSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    ratings: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Rating",
+      },
+    ],
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

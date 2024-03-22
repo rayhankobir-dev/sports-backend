@@ -19,6 +19,18 @@ const userSchema = new Schema(
       lowecase: true,
       trim: true,
     },
+    height: {
+      type: Number,
+      required: false,
+    },
+    weight: {
+      type: Number,
+      required: false,
+    },
+    country: {
+      type: String,
+      required: false,
+    },
     password: {
       type: String,
       required: [true, "Password is required"],
