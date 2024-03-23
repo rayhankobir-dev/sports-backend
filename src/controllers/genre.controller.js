@@ -1,10 +1,10 @@
-import ApiError from "../helpers/ApiError.js";
-import ApiResponse from "../helpers/ApiResponse.js";
 import asyncHandler from "../helpers/asyncHandler.js";
+import ApiResponse from "../helpers/ApiResponse.js";
 import { Genre } from "../models/genre.model.js";
-import { Role } from "../models/role.model.js";
+import ApiError from "../helpers/ApiError.js";
 import { slugify } from "../utils/utils.js";
 
+// creating a new genre
 export const createGenre = asyncHandler(async (req, res) => {
   try {
     const { name } = req.body;
@@ -23,6 +23,7 @@ export const createGenre = asyncHandler(async (req, res) => {
   }
 });
 
+// updating a genre
 export const editGenre = asyncHandler(async (req, res) => {
   try {
     const { genreId, name } = req.body;
@@ -34,6 +35,7 @@ export const editGenre = asyncHandler(async (req, res) => {
   }
 });
 
+// delete a genre
 export const deleteGenre = asyncHandler(async (req, res) => {
   try {
     const { genreId } = req.body;
@@ -47,6 +49,7 @@ export const deleteGenre = asyncHandler(async (req, res) => {
   }
 });
 
+// getting all genres
 export const getGenres = asyncHandler(async (req, res) => {
   try {
     const genres = await Genre.find();
@@ -57,18 +60,5 @@ export const getGenres = asyncHandler(async (req, res) => {
     );
   } catch (error) {
     throw new ApiError(500, "Internal Server Error!");
-  }
-});
-
-export const getGenreVideos = asyncHandler(async (req, res) => {
-  try {
-    const roles = await Role.find();
-    res.status(201).json(
-      new ApiResponse(200, "Success", {
-        roles,
-      })
-    );
-  } catch (error) {
-    console.log(error);
   }
 });

@@ -1,6 +1,6 @@
 import ApiError from "../helpers/ApiError.js";
-import { ValidationSource } from "../helpers/validator.js";
 import { capitalizeString } from "../utils/utils.js";
+import { ValidationSource } from "../helpers/validator.js";
 
 // request validation
 export const validation =

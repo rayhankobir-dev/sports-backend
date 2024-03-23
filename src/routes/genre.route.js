@@ -1,18 +1,20 @@
 import { Router } from "express";
-import auth from "../middleware/authentication.middleware.js";
-import authorization from "../middleware/authorization.middleware.js";
 import {
   createGenre,
+  getGenres,
   editGenre,
   deleteGenre,
-  getGenres,
-  getGenreVideos,
 } from "../controllers/genre.controller.js";
-import { validation } from "../middleware/validator.middleware.js";
 import genreSchema from "../validation/genre.schema.js";
+import auth from "../middleware/authentication.middleware.js";
+import { validation } from "../middleware/validator.middleware.js";
+import authorization from "../middleware/authorization.middleware.js";
 
+// creating genre route
 const genreRoute = new Router();
 
+// defining genre routes
+genreRoute.get("/", getGenres);
 genreRoute.post(
   "/",
   validation(genreSchema.create),
@@ -34,7 +36,5 @@ genreRoute.delete(
   authorization(["player", "admin"]),
   deleteGenre
 );
-genreRoute.get("/", getGenres);
-genreRoute.get("/genre/videos", getGenreVideos);
 
 export default genreRoute;

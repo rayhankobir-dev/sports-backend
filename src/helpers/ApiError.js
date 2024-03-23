@@ -1,3 +1,4 @@
+// to handle error and give structured response
 class ApiError extends Error {
   constructor(
     statusCode,

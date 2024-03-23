@@ -2,11 +2,11 @@ import Joi from "joi";
 
 const playlistSchema = {
   create: Joi.object().keys({
-    name: Joi.string().required(),
+    name: Joi.string().min(3).required(),
   }),
   edit: Joi.object().keys({
     playlistId: Joi.string().required(),
-    name: Joi.string().required(),
+    name: Joi.string().min(3).required(),
   }),
   add: Joi.object().keys({
     playlistId: Joi.string().required(),

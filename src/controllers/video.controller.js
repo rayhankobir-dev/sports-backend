@@ -1,12 +1,12 @@
+import { slugify } from "../utils/utils.js";
 import ApiError from "../helpers/ApiError.js";
+import { User } from "../models/user.model.js";
+import { Video } from "../models/video.model.js";
+import { Genre } from "../models/genre.model.js";
+import { Rating } from "../models/rating.model.js";
 import ApiResponse from "../helpers/ApiResponse.js";
 import asyncHandler from "../helpers/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
-import { Video } from "../models/video.model.js";
-import { Genre } from "../models/genre.model.js";
-import { User } from "../models/user.model.js";
-import { Rating } from "../models/rating.model.js";
-import { slugify } from "../utils/utils.js";
 
 // publish a video
 export const uploadVideo = asyncHandler(async (req, res) => {
@@ -57,24 +57,25 @@ export const editVideo = asyncHandler(async (req, res) => {
     video.slug = slugify(title);
     video.genre = genre;
     video.description = description;
+
     if (thumbnail) {
       const { url } = await uploadOnCloudinary(thumbnail.path);
       video.thumbnail = url;
     }
+
     if (file) {
       const videoFile = await uploadOnCloudinary(file.path);
       video.format = videoFile.format;
       video.duration = videoFile.duration;
-      video.fileSize = fileSize;
+      video.fileSize = file.size;
       video.file = videoFile.url;
-      video.playBackUrl = videFile.playback_url;
+      video.playBackUrl = videoFile.playback_url;
     }
 
     video.save();
 
     return res.status(200).json(new ApiResponse(200, "Video updated"));
   } catch (error) {
-    console.log(error);
     throw error;
   }
 });
@@ -124,7 +125,7 @@ export const getVideos = asyncHandler(async (req, res) => {
         $addFields: {
           averageRating: { $avg: "$ratings.rating" },
           owner: { $arrayElemAt: ["$owner", 0] },
-          genre: { $arrayElemAt: ["$genre", 0] }, // Convert genre from array to object
+          genre: { $arrayElemAt: ["$genre", 0] },
         },
       },
       {
@@ -156,7 +157,6 @@ export const getVideos = asyncHandler(async (req, res) => {
       })
     );
   } catch (error) {
-    console.log(error);
     throw new ApiError(500, "Internal Server Error!");
   }
 });
@@ -345,4 +345,41 @@ export const topWatchedVideos = async (req, res) => {
     })
   );
   return videos;
+};
+
+// getting videos by genre wise
+export const getGenreVideoCount = async () => {
+  const result = await Video.aggregate([
+    {
+      $group: {
+        _id: "$genre",
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $lookup: {
+        from: "genres",
+        localField: "_id",
+        foreignField: "_id",
+        as: "genre",
+      },
+    },
+    {
+      $unwind: {
+        path: "$genre",
+        preserveNullAndEmptyArrays: true, // Preserve unmatched genres
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        id: { $ifNull: ["$genre.slug", "Unknown"] },
+        label: { $ifNull: ["$genre.name", "Unknown"] },
+        value: { $ifNull: ["$count", 0] },
+        color: { $literal: "hsl(139, 70%, 50%)" },
+      },
+    },
+  ]);
+
+  return result;
 };

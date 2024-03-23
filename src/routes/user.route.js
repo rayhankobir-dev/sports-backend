@@ -1,7 +1,12 @@
 import { Router } from "express";
-import userSchema from "../validation/user.schema.js";
-import { validation } from "../middleware/validator.middleware.js";
 import {
+  signupUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  updateProfile,
+  userProfile,
+  updateAvatar,
   changePassword,
   createUser,
   deleteUser,
@@ -10,15 +15,10 @@ import {
   getAllPlayers,
   getPracticeList,
   getRatedVideos,
-  loginUser,
-  logoutUser,
-  refreshAccessToken,
-  signupUser,
-  updateAvatar,
-  updateProfile,
-  userProfile,
 } from "../controllers/user.controller.js";
+import userSchema from "../validation/user.schema.js";
 import auth from "../middleware/authentication.middleware.js";
+import { validation } from "../middleware/validator.middleware.js";
 import authorization from "../middleware/authorization.middleware.js";
 import { upload, validateFiles } from "../middleware/multer.middleware.js";
 
@@ -28,15 +28,20 @@ const userRoute = new Router();
 userRoute.post("/signup", validation(userSchema.signup), signupUser);
 userRoute.post("/login", validation(userSchema.login), loginUser);
 userRoute.post("/logout", auth, logoutUser);
-userRoute.post("/refresh-token", refreshAccessToken);
 userRoute.get("/profile", auth, userProfile);
+userRoute.post(
+  "/refresh-token",
+  validation(userSchema.refresh),
+  refreshAccessToken
+);
 userRoute.delete("/", auth, authorization(["admin"]), deleteUser);
 userRoute.put(
   "/update-profile",
-  validation(userSchema.updateProfile),
+  validation(userSchema.update),
   auth,
   updateProfile
 );
+
 userRoute.put(
   "/update-avatar",
   upload({
@@ -46,6 +51,12 @@ userRoute.put(
   validation(userSchema.avatar),
   auth,
   updateAvatar
+);
+userRoute.put(
+  "/change-password",
+  validation(userSchema.password),
+  auth,
+  changePassword
 );
 userRoute.post(
   "/create",
@@ -58,23 +69,15 @@ userRoute.post(
   authorization(["admin"]),
   createUser
 );
-userRoute.get("/admin", auth, authorization(["admin"]), getAllAdmin);
-userRoute.get("/coach", auth, authorization(["admin"]), getAllCoach);
-userRoute.get("/practicelist", auth, getPracticeList);
-userRoute.get("/rated-videos", auth, getRatedVideos);
-
 userRoute.get(
   "/player",
   auth,
   authorization(["coach", "admin"]),
   getAllPlayers
 );
-
-userRoute.put(
-  "/change-password",
-  validation(userSchema.password),
-  auth,
-  changePassword
-);
+userRoute.get("/admin", auth, authorization(["admin"]), getAllAdmin);
+userRoute.get("/coach", auth, authorization(["admin"]), getAllCoach);
+userRoute.get("/practicelist", auth, getPracticeList);
+userRoute.get("/rated-videos", auth, getRatedVideos);
 
 export default userRoute;

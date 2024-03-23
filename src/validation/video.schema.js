@@ -1,5 +1,6 @@
 import Joi from "joi";
 
+// video file schema for validation
 export const videFileSchema = Joi.object({
   fieldname: Joi.string().required(),
   originalname: Joi.string().required(),
@@ -27,6 +28,7 @@ export const imageSchema = Joi.object({
   size: Joi.number().required(),
 });
 
+// video schema
 const videoSchema = {
   upload: Joi.object().keys({
     title: Joi.string().required(),

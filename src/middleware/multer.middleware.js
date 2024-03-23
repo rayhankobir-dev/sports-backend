@@ -1,5 +1,6 @@
-import multer from "multer";
 import path from "path";
+import multer from "multer";
+import ApiError from "../helpers/ApiError.js";
 
 // multer middleware configuration
 const storage = multer.diskStorage({
@@ -21,17 +22,19 @@ const fileFilter = function (allowedExtensions) {
     if (allowedExtensions[fieldname].includes(fileExt)) {
       callback(null, true);
     } else {
-      callback(new Error("Invalid file type of the " + fieldname));
+      callback(new ApiError("Invalid file type of the " + fieldname));
     }
   };
 };
 
+// upload the image into local storgae
 export const upload = (allowedExtensions) =>
   multer({
     storage: storage,
     fileFilter: fileFilter(allowedExtensions),
   });
 
+// validate the file which gonna upload
 export function validateFiles(req, res, next) {
   Object.keys(req.files).forEach((fieldName) => {
     req.body[fieldName] = req.files[fieldName][0];

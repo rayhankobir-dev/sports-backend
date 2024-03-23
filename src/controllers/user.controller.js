@@ -1,16 +1,16 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { tokenConfig } from "../config.js";
+import ApiError from "../helpers/ApiError.js";
 import { User } from "../models/user.model.js";
 import { Role } from "../models/role.model.js";
-import asyncHandler from "../helpers/asyncHandler.js";
-import ApiError from "../helpers/ApiError.js";
-import ApiResponse from "../helpers/ApiResponse.js";
-import { tokenConfig } from "../config.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Genre } from "../models/genre.model.js";
 import { Video } from "../models/video.model.js";
 import { Rating } from "../models/rating.model.js";
-import { topWatchedVideos } from "./video.controller.js";
+import ApiResponse from "../helpers/ApiResponse.js";
+import asyncHandler from "../helpers/asyncHandler.js";
+import { getGenreVideoCount } from "./video.controller.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 // generating access and refresh token
 export const generateAccessAndRefereshTokens = async (userId) => {
@@ -289,7 +289,7 @@ export const userProfile = asyncHandler(async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
       .select("-password -refreshToken")
-      .populate("role genre watchHistory practiceList");
+      .populate("role genre watchHistory");
     return res.status(200).json(new ApiResponse(200, "Success", { user }));
   } catch (error) {
     throw error;
@@ -322,7 +322,6 @@ export const deleteUser = asyncHandler(async (req, res) => {
 export const updateProfile = asyncHandler(async (req, res) => {
   const { fullName, genre, height, weight, country } = req.body;
   try {
-    console.log(genre);
     const existGenre = await Genre.findById(genre);
     if (!existGenre) throw new ApiError(400, "Invalid genre");
     await User.findByIdAndUpdate(req.user._id, {
@@ -377,10 +376,11 @@ export const addWatchHistory = asyncHandler(async (req, res) => {
   }
 });
 
+// admin analytics
 export const adminAnalytics = asyncHandler(async (req, res) => {
   try {
     const geoData = await getGeoData();
-    const pieData = await getGenreVideos();
+    const pieData = await getGenreVideoCount();
     const userCount = await getTotalUser();
     const videoInfo = await getVideCount();
 
@@ -397,46 +397,11 @@ export const adminAnalytics = asyncHandler(async (req, res) => {
       })
     );
   } catch (error) {
-    console.log(error);
+    throw error;
   }
 });
 
-const getGenreVideos = async () => {
-  const result = await Video.aggregate([
-    {
-      $group: {
-        _id: "$genre",
-        count: { $sum: 1 },
-      },
-    },
-    {
-      $lookup: {
-        from: "genres",
-        localField: "_id",
-        foreignField: "_id",
-        as: "genre",
-      },
-    },
-    {
-      $unwind: {
-        path: "$genre",
-        preserveNullAndEmptyArrays: true, // Preserve unmatched genres
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-        id: { $ifNull: ["$genre.slug", "Unknown"] }, // Handle cases where genre is not found
-        label: { $ifNull: ["$genre.name", "Unknown"] }, // Handle cases where genre is not found
-        value: { $ifNull: ["$count", 0] }, // Set count to 0 if genre is not found
-        color: { $literal: "hsl(139, 70%, 50%)" },
-      },
-    },
-  ]);
-
-  return result;
-};
-
+// getting user geo data
 const getGeoData = async () => {
   const role = await Role.findOne({ role: "player" });
   const result = await User.aggregate([
@@ -455,6 +420,7 @@ const getGeoData = async () => {
   return formattedResult;
 };
 
+// getting video counts
 const getVideCount = async () => {
   try {
     const totalVideos = await Video.countDocuments();
@@ -465,10 +431,11 @@ const getVideCount = async () => {
 
     return { totalVideos, publishedVideos, unpublishedVideos };
   } catch (error) {
-    console.log(error);
+    throw error;
   }
 };
 
+// getting user count
 const getTotalUser = async () => {
   try {
     const result = await User.aggregate([
@@ -497,24 +464,25 @@ const getTotalUser = async () => {
     });
     return formattedResult;
   } catch (error) {
-    console.log(error);
+    throw error;
   }
 };
 
+// getting practicelist of a user
 export const getPracticeList = asyncHandler(async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    console.log(user);
     return res.status(200).json(
       new ApiResponse(200, "Success", {
         practiceList: user.practiceList,
       })
     );
   } catch (error) {
-    console.log(error);
+    throw error;
   }
 });
 
+// getting rated videos which rate by a user
 export const getRatedVideos = asyncHandler(async (req, res) => {
   try {
     const videos = await Rating.find({ user: req.user._id });
@@ -524,6 +492,6 @@ export const getRatedVideos = asyncHandler(async (req, res) => {
       })
     );
   } catch (error) {
-    console.log(error);
+    throw error;
   }
 });

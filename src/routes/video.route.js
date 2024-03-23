@@ -1,6 +1,4 @@
 import { Router } from "express";
-import auth from "../middleware/authentication.middleware.js";
-import authorization from "../middleware/authorization.middleware.js";
 import {
   uploadVideo,
   getVideos,
@@ -12,17 +10,19 @@ import {
   markedAsPracticed,
   rateVideo,
 } from "../controllers/video.controller.js";
-import { validation } from "../middleware/validator.middleware.js";
 import videoSchema from "../validation/video.schema.js";
-import { upload, validateFiles } from "../middleware/multer.middleware.js";
 import { ValidationSource } from "../helpers/validator.js";
+import auth from "../middleware/authentication.middleware.js";
+import { validation } from "../middleware/validator.middleware.js";
 import { addWatchHistory } from "../controllers/user.controller.js";
+import authorization from "../middleware/authorization.middleware.js";
+import { upload, validateFiles } from "../middleware/multer.middleware.js";
 
+// creating
 const videoRoute = new Router();
 
 // getting all videos
 videoRoute.get("/", getVideos);
-
 // upload new video
 videoRoute.post(
   "/",
@@ -44,7 +44,7 @@ videoRoute.put(
   "/",
   upload({
     thumbnail: [".jpg", ".png", ".jpeg", ".webp"],
-    file: [".mp3", ".mpeg", ".wav"],
+    file: [".mp4", ".mpeg4", ".wav"],
   }).fields([
     { name: "thumbnail", maxCount: 1 },
     { name: "file", maxCount: 1 },
@@ -70,7 +70,6 @@ videoRoute.put(
   authorization(["coach", "admin"]),
   toggleVideo
 );
-
 // make video practiced
 videoRoute.post(
   "/practiced",
@@ -79,7 +78,7 @@ videoRoute.post(
   authorization(["player"]),
   markedAsPracticed
 );
-
+// give rating on a video
 videoRoute.post(
   "/rate",
   validation(videoSchema.rating),
@@ -87,18 +86,19 @@ videoRoute.post(
   authorization(["player"]),
   rateVideo
 );
-
+// getting video by slug
 videoRoute.get(
   "/:slug",
   validation(videoSchema.slug, ValidationSource.PARAM),
   getVideoBySlug
 );
+// getting video by genre
 videoRoute.get(
   "/genre/:slug",
   validation(videoSchema.slug, ValidationSource.PARAM),
   getVideosByGenre
 );
-
+// updating watch history
 videoRoute.put("/watch-history", auth, addWatchHistory);
 
 export default videoRoute;
