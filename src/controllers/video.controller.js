@@ -310,7 +310,7 @@ export const getVideosByGenre = asyncHandler(async (req, res) => {
   }
 });
 
-export const topWatchedVideos = async (req, res) => {
+export const topWatchedVideos = async () => {
   const videos = await Video.aggregate([
     {
       $lookup: {
@@ -318,6 +318,14 @@ export const topWatchedVideos = async (req, res) => {
         localField: "_id",
         foreignField: "watchHistory",
         as: "watchedUsers",
+      },
+    },
+    {
+      $lookup: {
+        from: "genres",
+        localField: "genre",
+        foreignField: "_id",
+        as: "genreDetails",
       },
     },
     {
@@ -333,17 +341,63 @@ export const topWatchedVideos = async (req, res) => {
     },
     {
       $project: {
+        slug: 1,
         title: 1,
+        thumbnail: 1,
+        description: 1,
         views: 1,
+        genreName: { $arrayElemAt: ["$genreDetails.name", 0] },
       },
     },
   ]);
 
-  res.status().json(
-    new ApiResponse(200, "Success", {
-      videos,
-    })
-  );
+  return videos;
+};
+
+export const coachPopularVideo = async (owner) => {
+  const videos = await Video.aggregate([
+    {
+      $match: { owner },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "watchHistory",
+        as: "watchedUsers",
+      },
+    },
+    {
+      $lookup: {
+        from: "genres",
+        localField: "genre",
+        foreignField: "_id",
+        as: "genreDetails",
+      },
+    },
+    {
+      $addFields: {
+        views: { $size: "$watchedUsers" },
+      },
+    },
+    {
+      $sort: { views: -1 },
+    },
+    {
+      $limit: 10,
+    },
+    {
+      $project: {
+        slug: 1,
+        title: 1,
+        thumbnail: 1,
+        description: 1,
+        views: 1,
+        genreName: { $arrayElemAt: ["$genreDetails.name", 0] },
+      },
+    },
+  ]);
+
   return videos;
 };
 
@@ -382,4 +436,113 @@ export const getGenreVideoCount = async () => {
   ]);
 
   return result;
+};
+
+export const countWatchedUsers = async (owner) => {
+  const result = await Video.aggregate([
+    {
+      $match: { owner },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "watchHistory",
+        as: "watchedUsers",
+      },
+    },
+    {
+      $unwind: "$watchedUsers",
+    },
+    {
+      $group: {
+        _id: null,
+        totalWatchedUsers: { $sum: 1 },
+      },
+    },
+  ]);
+
+  return result.length > 0 ? result[0].totalWatchedUsers : 0;
+};
+
+export const countPublishedCategoriesByOwner = async (owner) => {
+  const result = await Video.aggregate([
+    {
+      $match: { owner },
+    },
+    {
+      $group: {
+        _id: "$genre",
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalCategories: { $sum: 1 },
+      },
+    },
+  ]);
+
+  return result.length > 0 ? result[0].totalCategories : 0;
+};
+
+export const calculateTotalWatchTimeByOwner = async (owner) => {
+  const result = await Video.aggregate([
+    {
+      $match: { owner },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "watchHistory",
+        as: "watchedUsers",
+      },
+    },
+    {
+      $unwind: "$watchedUsers",
+    },
+    {
+      $group: {
+        _id: null,
+        totalWatchTime: { $sum: { $toDouble: "$duration" } },
+      },
+    },
+  ]);
+
+  const totalWatchTimeInHours =
+    result.length > 0 ? result[0].totalWatchTime / 3600 : 0;
+  return totalWatchTimeInHours;
+};
+
+// getting video counts
+export const getVideCount = async () => {
+  try {
+    const totalVideos = await Video.countDocuments();
+    const publishedVideos = await Video.countDocuments({ isPublished: true });
+    const unpublishedVideos = await Video.countDocuments({
+      isPublished: false,
+    });
+
+    return { totalVideos, publishedVideos, unpublishedVideos };
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getVideCountByOwner = async (owner) => {
+  const totalVideos = await Video.countDocuments({
+    owner,
+  });
+  const publishedVideos = await Video.countDocuments({
+    owner,
+    isPublished: true,
+  });
+  const unpublishedVideos = await Video.countDocuments({
+    owner,
+    isPublished: false,
+  });
+
+  return { totalVideos, publishedVideos, unpublishedVideos };
 };

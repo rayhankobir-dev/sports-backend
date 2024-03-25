@@ -46,6 +46,9 @@ const userSchema = {
     currentPassword: Joi.string().required(),
     newPassword: Joi.string().min(6).required(),
   }),
+  playlist: Joi.object().keys({
+    videoId: Joi.string().required(),
+  }),
 };
 
 export default userSchema;

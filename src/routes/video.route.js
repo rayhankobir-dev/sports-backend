@@ -99,6 +99,11 @@ videoRoute.get(
   getVideosByGenre
 );
 // updating watch history
-videoRoute.put("/watch-history", auth, addWatchHistory);
+videoRoute.put(
+  "/watch-history",
+  auth,
+  authorization(["player"]),
+  addWatchHistory
+);
 
 export default videoRoute;

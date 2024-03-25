@@ -15,6 +15,9 @@ import {
   getAllPlayers,
   getPracticeList,
   getRatedVideos,
+  getPlaylists,
+  addPlaylistItem,
+  removePlaylistItem,
 } from "../controllers/user.controller.js";
 import userSchema from "../validation/user.schema.js";
 import auth from "../middleware/authentication.middleware.js";
@@ -66,7 +69,7 @@ userRoute.post(
   validateFiles,
   validation(userSchema.create),
   auth,
-  authorization(["admin"]),
+  authorization(["coach", "admin"]),
   createUser
 );
 userRoute.get(
@@ -79,5 +82,20 @@ userRoute.get("/admin", auth, authorization(["admin"]), getAllAdmin);
 userRoute.get("/coach", auth, authorization(["admin"]), getAllCoach);
 userRoute.get("/practicelist", auth, getPracticeList);
 userRoute.get("/rated-videos", auth, getRatedVideos);
+userRoute.get("/playlist", auth, authorization(["player"]), getPlaylists);
+userRoute.put(
+  "/playlist",
+  validation(userSchema.playlist),
+  auth,
+  authorization(["player"]),
+  addPlaylistItem
+);
+userRoute.delete(
+  "/playlist",
+  validation(userSchema.playlist),
+  auth,
+  authorization(["player"]),
+  removePlaylistItem
+);
 
 export default userRoute;

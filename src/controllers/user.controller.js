@@ -9,7 +9,16 @@ import { Video } from "../models/video.model.js";
 import { Rating } from "../models/rating.model.js";
 import ApiResponse from "../helpers/ApiResponse.js";
 import asyncHandler from "../helpers/asyncHandler.js";
-import { getGenreVideoCount } from "./video.controller.js";
+import {
+  calculateTotalWatchTimeByOwner,
+  coachPopularVideo,
+  countPublishedCategoriesByOwner,
+  countWatchedUsers,
+  getGenreVideoCount,
+  getVideCount,
+  getVideCountByOwner,
+  topWatchedVideos,
+} from "./video.controller.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 // generating access and refresh token
@@ -376,6 +385,69 @@ export const addWatchHistory = asyncHandler(async (req, res) => {
   }
 });
 
+// getting all playlists
+export const getPlaylists = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate("playlist");
+    res.status(200).json(
+      new ApiResponse(200, "Success", {
+        playlists: user.playlist,
+      })
+    );
+  } catch (error) {
+    throw new ApiError(500, "Internal Server Error");
+  }
+});
+
+// add video into a playlist
+export const addPlaylistItem = asyncHandler(async (req, res) => {
+  const { videoId } = req.body;
+  try {
+    const video = await Video.findById(videoId);
+    if (!video) throw new ApiError(400, "Video not found");
+
+    const user = await User.findById(req.user._id).populate("playlist");
+    const watched = user.playlist?.some(
+      (watch) => watch?._id.toString() === videoId
+    );
+    if (watched) throw new ApiError(400, "Video already in playlist");
+
+    user.playlist.push(video);
+    user.save();
+
+    res.status(200).json(
+      new ApiResponse(200, "Video is added to playlist", {
+        playlists: user.playlist,
+      })
+    );
+  } catch (error) {
+    throw error;
+  }
+});
+
+// remove video from a playlist
+export const removePlaylistItem = asyncHandler(async (req, res) => {
+  const { videoId } = req.body;
+  try {
+    const user = await User.findById(req.user._id).populate("playlist");
+    const exist = user.playlist.some((item) => item._id.toString() === videoId);
+    if (!exist) throw new ApiError(404, "Playlist item not found");
+
+    user.playlist = user.playlist.filter(
+      (item) => item._id.toString() !== videoId
+    );
+    user.save();
+
+    res.status(200).json(
+      new ApiResponse(200, "Successfully removed from playlist", {
+        playlists: user.playlist,
+      })
+    );
+  } catch (error) {
+    throw error;
+  }
+});
+
 // admin analytics
 export const adminAnalytics = asyncHandler(async (req, res) => {
   try {
@@ -383,12 +455,14 @@ export const adminAnalytics = asyncHandler(async (req, res) => {
     const pieData = await getGenreVideoCount();
     const userCount = await getTotalUser();
     const videoInfo = await getVideCount();
+    const topVideos = await topWatchedVideos();
 
     const analytics = {
       geoData,
       pieData,
       userCount,
       videoInfo,
+      topVideos,
     };
 
     res.status(200).json(
@@ -397,6 +471,39 @@ export const adminAnalytics = asyncHandler(async (req, res) => {
       })
     );
   } catch (error) {
+    throw error;
+  }
+});
+
+export const coachAnalytics = asyncHandler(async (req, res) => {
+  try {
+    const geoData = await getWatchedUsersGeoData();
+    const pieData = await getGenreVideoCount();
+    const userCount = await getTotalUser();
+    const videoInfo = await getVideCountByOwner(req.user._id);
+    const topVideos = await coachPopularVideo(req.user._id);
+    const watchedUser = await countWatchedUsers(req.user._id);
+    const genreCount = await countPublishedCategoriesByOwner(req.user._id);
+    const watchTime = await calculateTotalWatchTimeByOwner(req.user._id);
+
+    const analytics = {
+      topVideos,
+      geoData,
+      pieData,
+      userCount,
+      videoInfo,
+      watchedUser,
+      genreCount,
+      watchTime,
+    };
+
+    res.status(200).json(
+      new ApiResponse(200, "Success", {
+        analytics,
+      })
+    );
+  } catch (error) {
+    console.log(error);
     throw error;
   }
 });
@@ -420,16 +527,40 @@ const getGeoData = async () => {
   return formattedResult;
 };
 
-// getting video counts
-const getVideCount = async () => {
+const getWatchedUsersGeoData = async (ownerId) => {
   try {
-    const totalVideos = await Video.countDocuments();
-    const publishedVideos = await Video.countDocuments({ isPublished: true });
-    const unpublishedVideos = await Video.countDocuments({
-      isPublished: false,
-    });
+    const result = await User.aggregate([
+      {
+        $lookup: {
+          from: "videos",
+          localField: "watchHistory",
+          foreignField: "_id",
+          as: "watchedVideos",
+        },
+      },
+      {
+        $match: {
+          country: { $ne: null },
+          watchedVideos: { $exists: true, $not: { $size: 0 } },
+        },
+      },
+      {
+        $group: {
+          _id: "$country",
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { count: -1 },
+      },
+    ]);
 
-    return { totalVideos, publishedVideos, unpublishedVideos };
+    const formattedResult = [
+      ["Country", "Players"],
+      ...result.map((item) => [item._id, item.count]),
+    ];
+
+    return formattedResult;
   } catch (error) {
     throw error;
   }

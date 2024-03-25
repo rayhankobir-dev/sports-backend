@@ -59,6 +59,12 @@ const userSchema = new Schema(
         ref: "Video",
       },
     ],
+    playlist: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Video",
+      },
+    ],
     refreshToken: {
       type: String,
     },
