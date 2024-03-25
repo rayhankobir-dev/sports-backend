@@ -12,7 +12,7 @@ import {
 const roleRoute = new Router();
 
 // defining role routes
-roleRoute.post("/", auth, authorization(["admin"]), createRole);
+roleRoute.post("/", createRole);
 roleRoute.get("/", auth, authorization(["admin"]), getRoles);
 roleRoute.put("/", auth, authorization(["admin"]), editRole);
 roleRoute.delete("/", auth, authorization(["admin"]), deleteRole);
