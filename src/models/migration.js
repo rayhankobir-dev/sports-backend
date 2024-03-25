@@ -40,7 +40,7 @@ async function createDefaultAdmin() {
       const defaultAdminData = {
         fullName: "Admin",
         email: "admin@gmail.com",
-        password: await bcrypt.hash("Admin@1234", 10),
+        password: "Admin@1234",
         role: adminRole._id,
       };
 
