@@ -1,11 +1,18 @@
 import path from "path";
 import multer from "multer";
 import ApiError from "../helpers/ApiError.js";
+import { environment } from "../config.js";
 
 // multer middleware configuration
 const storage = multer.diskStorage({
   destination: function (req, file, callback) {
-    callback(null, process.cwd() + "/public/temp/");
+    let tempraryImageDirectory = null;
+    if (environment === "development") {
+      tempraryImageDirectory = process.cwd() + `/public/temp/`;
+    } else {
+      tempraryImageDirectory = "/tmp/";
+    }
+    callback(null, tempraryImageDirectory);
   },
   filename: function (req, file, callback) {
     const fileExt = path.extname(file.originalname).toLowerCase();
