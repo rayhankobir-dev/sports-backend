@@ -321,10 +321,15 @@ export const updateAvatar = asyncHandler(async (req, res) => {
 export const deleteUser = asyncHandler(async (req, res) => {
   const { user } = req.body;
   try {
+    const userExist = User.findById(user);
+    if (!userExist) throw new ApiError(400, "User not found");
+
     await User.findByIdAndDelete(user);
-    res.status(200).json(new ApiResponse(200, "User deleted"));
+    await Video.deleteMany({ owner: user });
+
+    res.status(200).json(new ApiResponse(200, "User deleted successfully"));
   } catch (error) {
-    res.status(500).json(new ApiResponse(500, "Error"));
+    throw error;
   }
 });
 
