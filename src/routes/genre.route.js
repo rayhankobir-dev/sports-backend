@@ -19,21 +19,21 @@ genreRoute.post(
   "/",
   validation(genreSchema.create),
   auth,
-  authorization(["player", "admin"]),
+  authorization(["coach", "admin"]),
   createGenre
 );
 genreRoute.put(
   "/",
   validation(genreSchema.edit),
   auth,
-  authorization(["player", "admin"]),
+  authorization(["coach", "admin"]),
   editGenre
 );
 genreRoute.delete(
   "/",
   validation(genreSchema.delete),
   auth,
-  authorization(["player", "admin"]),
+  authorization(["coach", "admin"]),
   deleteGenre
 );
 
