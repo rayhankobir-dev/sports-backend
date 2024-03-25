@@ -1,17 +1,14 @@
 import { Role } from "./role.model.js";
-import mongoose from "mongoose";
-import { dbConfig } from "../config.js";
+import { User } from "./user.model.js";
+import bcrypt from "bcrypt";
 
-async function seeding() {
+export async function seeding() {
   try {
-    await mongoose.connect(dbConfig.url + dbConfig.name);
-
     // seeding roles
-    createRoles();
+    await createRoles();
+    await createDefaultAdmin();
   } catch (error) {
-    console.error("Error creating roles:", error);
-  } finally {
-    mongoose.disconnect();
+    console.error("Seeding error:", error);
   }
 }
 
@@ -34,4 +31,26 @@ async function createRoles() {
   }
 }
 
-seeding();
+async function createDefaultAdmin() {
+  try {
+    const adminRole = await Role.findOne({ role: "admin" }).lean();
+    const existingAdmin = await User.findOne({ role: adminRole._id }).lean();
+
+    if (!existingAdmin) {
+      const defaultAdminData = {
+        fullName: "Admin",
+        email: "admin@gmail.com",
+        password: await bcrypt.hash("Admin@1234", 10),
+        role: adminRole._id,
+      };
+
+      await User.create(defaultAdminData);
+      console.log("Sedding: default admin created");
+      console.log("Created admin info: (admin@gmail.com, Admin@1234)");
+      console.log("Please don't forget to delete this user");
+      console.log("--------->");
+    }
+  } catch (error) {
+    console.error("Seeding error:", error);
+  }
+}
