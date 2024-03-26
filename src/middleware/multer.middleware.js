@@ -7,7 +7,7 @@ import { environment } from "../config.js";
 const storage = multer.diskStorage({
   destination: function (req, file, callback) {
     let tempraryImageDirectory = null;
-    if (environment === "development") {
+    if (environment === "dev") {
       tempraryImageDirectory = process.cwd() + `/public/temp/`;
     } else {
       tempraryImageDirectory = "/tmp/";
