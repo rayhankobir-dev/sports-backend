@@ -45,8 +45,8 @@ export const uploadVideo = asyncHandler(async (req, res) => {
 
 // update video info
 export const editVideo = asyncHandler(async (req, res) => {
-  const { videoId, title, description, genre, thumbnail, file } = req.body;
   try {
+    const { videoId, title, description, genre, thumbnail, file } = req.body;
     const existGenre = await Genre.findById(genre);
     if (!existGenre) throw new ApiError(400, "Genre not found");
 
@@ -58,12 +58,12 @@ export const editVideo = asyncHandler(async (req, res) => {
     video.genre = genre;
     video.description = description;
 
-    if (thumbnail) {
+    if (thumbnail?.path) {
       const { url } = await uploadOnCloudinary(thumbnail.path);
       video.thumbnail = url;
     }
 
-    if (file) {
+    if (file?.path) {
       const videoFile = await uploadOnCloudinary(file.path);
       video.format = videoFile.format;
       video.duration = videoFile.duration;
